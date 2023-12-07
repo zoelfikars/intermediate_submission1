@@ -22,17 +22,17 @@ import kotlinx.coroutines.launch
 
 class SignUpActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySignUpBinding
-    private val viewModel by viewModels<SignUpViewModel> {
-        ViewModelFactory.getInstance(this)
-    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySignUpBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
+        val viewModel by viewModels<SignUpViewModel> {
+            ViewModelFactory.getInstance(this)
+        }
         setupView()
-        setupAction()
+        setupAction(viewModel)
         playAnimation()
     }
 
@@ -49,7 +49,7 @@ class SignUpActivity : AppCompatActivity() {
         supportActionBar?.hide()
     }
 
-    private fun setupAction() {
+    private fun setupAction(viewModel: SignUpViewModel) {
         binding.signupButton.setOnClickListener {
             val name = binding.nameEditText.text.toString()
             val email = binding.emailEditText.text.toString()
@@ -82,7 +82,7 @@ class SignUpActivity : AppCompatActivity() {
             setTitle("Yeah!")
             setMessage("Anda berhasil registrasi. Sudah tidak sabar untuk berbagi cerita ya?")
             setPositiveButton("Lanjut") { _, _ ->
-                val intent = Intent(context, MainActivity::class.java)
+                val intent = Intent(this@SignUpActivity, MainActivity::class.java)
                 intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
                 startActivity(intent)
                 finish()

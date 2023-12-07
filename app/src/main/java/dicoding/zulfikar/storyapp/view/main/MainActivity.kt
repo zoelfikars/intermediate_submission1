@@ -6,7 +6,6 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
@@ -19,6 +18,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import dicoding.zulfikar.storyapp.R
 import dicoding.zulfikar.storyapp.data.models.StoryModel
+import dicoding.zulfikar.storyapp.data.pref.UserPreference
+import dicoding.zulfikar.storyapp.data.pref.dataStore
 import dicoding.zulfikar.storyapp.data.remote.Result
 import dicoding.zulfikar.storyapp.databinding.ActivityMainBinding
 import dicoding.zulfikar.storyapp.databinding.StoryListBinding
@@ -26,55 +27,20 @@ import dicoding.zulfikar.storyapp.view.ViewModelFactory
 import dicoding.zulfikar.storyapp.view.addstory.AddStoryActivity
 import dicoding.zulfikar.storyapp.view.detail.DetailActivity
 import dicoding.zulfikar.storyapp.view.welcome.WelcomeActivity
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
-    private val viewModel by viewModels<MainViewModel> {
-        ViewModelFactory.getInstance(this)
-    }
     private lateinit var binding: ActivityMainBinding
-    private lateinit var storyAdapter: StoryAdapter
-
+    private val viewModel: MainViewModel by viewModels {
+        ViewModelFactory.getInstance(this@MainActivity)
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        viewModel.getSession().observe(this) { user ->
-            if (!user.isLogin) {
-                Log.d("INI ADALAH IJUL BLABLABLABLA if", user.toString())
-                startActivity(Intent(this, WelcomeActivity::class.java))
-                finish()
-            } else {
-                Log.d("INI ADALAH IJUL BLABLABLABLA else", user.toString())
-                setupView()
-                setupAction()
-                playAnimation()
-                setupRecyclerView()
-            }
-        }
-
-        binding.floatingActionButton.setOnClickListener {
-            startActivity(Intent(this, AddStoryActivity::class.java))
-            finish()
-        }
-    }
-
-    private fun setupView() {
-        @Suppress("DEPRECATION")
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            window.insetsController?.hide(WindowInsets.Type.statusBars())
-        } else {
-            window.setFlags(
-                WindowManager.LayoutParams.FLAG_FULLSCREEN,
-                WindowManager.LayoutParams.FLAG_FULLSCREEN
-            )
-        }
-        supportActionBar?.hide()
-    }
-
-    private fun setupRecyclerView() {
-        storyAdapter = StoryAdapter { selectedStory ->
+        var storyAdapter = StoryAdapter { selectedStory ->
             val storyModel = StoryModel(
                 name = selectedStory.name,
                 description = selectedStory.description,
@@ -92,18 +58,56 @@ class MainActivity : AppCompatActivity() {
                     Pair(storyListBinding.tvItemNama, "name"),
                     Pair(storyListBinding.tvItemDescription, "description"),
                 )
-            val intent = Intent(this, DetailActivity::class.java)
+            val intent = Intent(this@MainActivity, DetailActivity::class.java)
             intent.putExtra("EXTRA_STORY_MODEL", storyModel)
 
             startActivity(intent, optionsCompat.toBundle())
             finish()
         }
 
+        lifecycleScope.launch {
+            val result = UserPreference(applicationContext.dataStore).getSession().first().token
+            if (result.isEmpty()) {
+                move()
+            } else {
+                setupView()
+                setupAction()
+                playAnimation()
+                setupRecyclerView(storyAdapter)
+            }
+        }
+
+        binding.floatingActionButton.setOnClickListener {
+            startActivity(Intent(this, AddStoryActivity::class.java))
+            finish()
+        }
+    }
+
+    private fun move() {
+        startActivity(Intent(this, WelcomeActivity::class.java))
+        finish()
+    }
+
+    private fun setupView() {
+        @Suppress("DEPRECATION")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.hide(WindowInsets.Type.statusBars())
+        } else {
+            window.setFlags(
+                WindowManager.LayoutParams.FLAG_FULLSCREEN,
+                WindowManager.LayoutParams.FLAG_FULLSCREEN
+            )
+        }
+        supportActionBar?.hide()
+    }
+
+    private fun setupRecyclerView(storyAdapter: StoryAdapter) {
         binding.recyclerView.adapter = storyAdapter
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
 
         lifecycleScope.launch {
-            val result = viewModel.getStories()
+            val token = UserPreference(this@MainActivity.dataStore).getSession().first().token
+            val result = viewModel.getStories(token)
             showLoading(true)
             when (result) {
                 is Result.Success -> {
@@ -131,18 +135,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showChoiceDialog() {
-        logout()
-
-//        AlertDialog.Builder(this)
-//            .setTitle("Konfirmasi Logout")
-//            .setMessage("Apakah Anda yakin ingin logout?")
-//            .setPositiveButton("Ya") { _, _ ->
-//                logout()
-//            }
-//            .setNegativeButton("Tidak") { dialog, _ ->
-//                dialog.dismiss()
-//            }
-//            .show()
+        AlertDialog.Builder(this)
+            .setTitle("Konfirmasi Logout")
+            .setMessage("Apakah Anda yakin ingin logout?")
+            .setPositiveButton("Ya") { _, _ ->
+                logout()
+            }
+            .setNegativeButton("Tidak") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
     }
 
     private fun setupAction() {
@@ -181,7 +183,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun logout() {
         lifecycleScope.launch {
-            viewModel.logout()
+            UserPreference(applicationContext.dataStore).logout()
         }
+        move()
     }
 }

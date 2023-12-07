@@ -81,7 +81,7 @@ class DetailActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.itemId == android.R.id.home) {
-            startActivity(Intent(this, MainActivity::class.java))
+            startActivity(Intent(this@DetailActivity, MainActivity::class.java))
             finish()
             return true
         }
@@ -90,7 +90,7 @@ class DetailActivity : AppCompatActivity() {
 
     override fun onBackPressed() {
         super.onBackPressed()
-        startActivity(Intent(this, MainActivity::class.java))
+        startActivity(Intent(this@DetailActivity, MainActivity::class.java))
         finish()
     }
 }

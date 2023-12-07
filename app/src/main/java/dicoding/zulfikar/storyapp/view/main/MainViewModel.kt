@@ -1,30 +1,22 @@
 package dicoding.zulfikar.storyapp.view.main
 
-import androidx.lifecycle.LiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.asLiveData
-import androidx.lifecycle.viewModelScope
 import dicoding.zulfikar.storyapp.data.StoryRepository
-import dicoding.zulfikar.storyapp.data.UserRepository
-import dicoding.zulfikar.storyapp.data.models.UserModel
 import dicoding.zulfikar.storyapp.data.remote.Result
+import dicoding.zulfikar.storyapp.data.remote.response.MessageResponse
 import dicoding.zulfikar.storyapp.data.remote.response.StoryResponse
-import kotlinx.coroutines.launch
+import java.io.File
 
-class MainViewModel(private val repository: UserRepository, private val story: StoryRepository) : ViewModel() {
-    fun getSession(): LiveData<UserModel> {
-        return repository.getSession().asLiveData()
+class MainViewModel(
+    private val repository: StoryRepository
+) : ViewModel() {
+    suspend fun getStories(token: String): Result<StoryResponse> {
+        return repository.getStories(token)
     }
-
-    suspend fun getStories(): Result<StoryResponse> {
-        return story.getStories()
+    suspend fun uploadImage(
+        file: File,
+        description: String,
+    ): Result<MessageResponse> {
+        return repository.uploadImage(file, description)
     }
-
-
-    fun logout() {
-        viewModelScope.launch {
-            repository.logout()
-        }
-    }
-
 }

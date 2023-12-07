@@ -22,21 +22,21 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
 import dicoding.zulfikar.storyapp.R
+import dicoding.zulfikar.storyapp.data.pref.UserPreference
+import dicoding.zulfikar.storyapp.data.pref.dataStore
 import dicoding.zulfikar.storyapp.data.remote.Result
 import dicoding.zulfikar.storyapp.databinding.ActivityAddStoryBinding
 import dicoding.zulfikar.storyapp.view.ViewModelFactory
 import dicoding.zulfikar.storyapp.view.addstory.CameraXActivity.Companion.CAMERAX_RESULT
 import dicoding.zulfikar.storyapp.view.main.MainActivity
+import dicoding.zulfikar.storyapp.view.main.MainViewModel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 
 class AddStoryActivity : AppCompatActivity() {
-    private val viewModel by viewModels<AddStoryViewModel> {
-        ViewModelFactory.getInstance(this)
-    }
     private lateinit var binding: ActivityAddStoryBinding
     private var currentImageUri: Uri? = null
-
     private fun allPermissionsGranted() =
         ContextCompat.checkSelfPermission(
             this,
@@ -80,13 +80,23 @@ class AddStoryActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityAddStoryBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        val viewModel: MainViewModel by viewModels {
+            ViewModelFactory.getInstance(this)
+        }
         if (!allPermissionsGranted()) {
             requestPermissionLauncher.launch(REQUIRED_PERMISSION)
         }
+        lifecycleScope.launch {
+            val result = UserPreference(applicationContext.dataStore).getSession().first().token
+            if (result.isEmpty()) {
+                move()
+            } else {
+                setupView()
+                setupAction(viewModel)
+                playAnimation()
+            }
+        }
 
-        setupView()
-        setupAction()
-        playAnimation()
     }
 
     private fun playAnimation() {
@@ -118,7 +128,7 @@ class AddStoryActivity : AppCompatActivity() {
         }.start()
     }
 
-    private fun setupAction() {
+    private fun setupAction(viewModel: MainViewModel) {
         with(binding) {
             setSupportActionBar(toolbar)
             supportActionBar?.setDisplayHomeAsUpEnabled(true)
@@ -129,7 +139,7 @@ class AddStoryActivity : AppCompatActivity() {
                 startGallery()
             }
             button3.setOnClickListener {
-                uploadStory()
+                uploadStory(viewModel)
             }
         }
     }
@@ -162,7 +172,7 @@ class AddStoryActivity : AppCompatActivity() {
         launcherIntentCameraX.launch(intent)
     }
 
-    private fun uploadStory() {
+    private fun uploadStory(viewModel: MainViewModel) {
         currentImageUri?.let { uri ->
             val imageFile = uriToFile(uri, this).reduceFileImage()
             Log.d("Image File", "showImage: ${imageFile.path}")
@@ -188,7 +198,9 @@ class AddStoryActivity : AppCompatActivity() {
 
     private fun move() {
         showToast("upload berhasil")
-        startActivity(Intent(this, MainActivity::class.java))
+        val intent = Intent(this@AddStoryActivity, MainActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
+        startActivity(intent)
         finish()
     }
 
@@ -202,7 +214,7 @@ class AddStoryActivity : AppCompatActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.itemId == android.R.id.home) {
-            startActivity(Intent(this, MainActivity::class.java))
+            startActivity(Intent(this@AddStoryActivity, MainActivity::class.java))
             finish()
             return true
         }
@@ -211,7 +223,7 @@ class AddStoryActivity : AppCompatActivity() {
 
     override fun onBackPressed() {
         super.onBackPressed()
-        startActivity(Intent(this, MainActivity::class.java))
+        startActivity(Intent(this@AddStoryActivity, MainActivity::class.java))
         finish()
     }
 

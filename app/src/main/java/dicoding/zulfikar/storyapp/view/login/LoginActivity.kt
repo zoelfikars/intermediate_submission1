@@ -12,8 +12,9 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import dicoding.zulfikar.storyapp.data.pref.UserPreference
+import dicoding.zulfikar.storyapp.data.pref.dataStore
 import dicoding.zulfikar.storyapp.data.remote.Result
-import dicoding.zulfikar.storyapp.data.remote.response.LoginResponse
 import dicoding.zulfikar.storyapp.databinding.ActivityLoginBinding
 import dicoding.zulfikar.storyapp.view.ViewModelFactory
 import dicoding.zulfikar.storyapp.view.main.MainActivity
@@ -22,10 +23,9 @@ import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
-    private val viewModel by viewModels<LoginViewModel> {
+    private val viewModel: LoginViewModel by viewModels {
         ViewModelFactory.getInstance(this)
     }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityLoginBinding.inflate(layoutInflater)
@@ -55,22 +55,18 @@ class LoginActivity : AppCompatActivity() {
             val password = binding.passwordEditText.text.toString()
             lifecycleScope.launch {
                 showLoading(true)
-                val result = viewModel.login(email, password)
-                handleLoginResult(result)
-            }
-        }
-    }
+                when (val result = viewModel.login(email, password)) {
+                    is Result.Success -> {
+                        UserPreference(applicationContext.dataStore).saveSession(result.data.loginResult)
+                        showLoading(false)
+                        showSuccessDialog()
+                    }
 
-    private fun handleLoginResult(result: Result<LoginResponse>) {
-        when (result) {
-            is Result.Success -> {
-                showLoading(false)
-                showSuccessDialog()
-            }
-
-            is Result.Error -> {
-                showLoading(false)
-                showErrorDialog(result.exception.message)
+                    is Result.Error -> {
+                        showLoading(false)
+                        showErrorDialog(result.exception.message)
+                    }
+                }
             }
         }
     }
@@ -80,10 +76,9 @@ class LoginActivity : AppCompatActivity() {
             setTitle("Yeah!")
             setMessage("Anda berhasil login. Silahkan lanjut untuk melihat story temanmu di dicoding?")
             setPositiveButton("Lanjut") { _, _ ->
-                val intent = Intent(context, MainActivity::class.java)
+                val intent = Intent(this@LoginActivity, MainActivity::class.java)
                 intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
                 startActivity(intent)
-                finish()
             }
             create()
             show()

@@ -8,35 +8,39 @@ import android.os.Bundle
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
-import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import dicoding.zulfikar.storyapp.data.pref.UserPreference
+import dicoding.zulfikar.storyapp.data.pref.dataStore
 import dicoding.zulfikar.storyapp.databinding.ActivityWelcomeBinding
-import dicoding.zulfikar.storyapp.view.ViewModelFactory
 import dicoding.zulfikar.storyapp.view.login.LoginActivity
 import dicoding.zulfikar.storyapp.view.main.MainActivity
-import dicoding.zulfikar.storyapp.view.main.MainViewModel
 import dicoding.zulfikar.storyapp.view.signup.SignUpActivity
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 
 class WelcomeActivity : AppCompatActivity() {
     private lateinit var binding: ActivityWelcomeBinding
-    private val viewModel by viewModels<MainViewModel> {
-        ViewModelFactory.getInstance(this)
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityWelcomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        viewModel.getSession().observe(this) { user ->
-            if (user.isLogin) {
-                startActivity(Intent(this, MainActivity::class.java))
-                finish()
+        lifecycleScope.launch {
+            val token = UserPreference(applicationContext.dataStore).getSession().first().token
+            if (token.isNotEmpty()) {
+                move()
+            } else {
+                setupView()
+                setupAction()
+                playAnimation()
             }
         }
-        setupView()
-        setupAction()
-        playAnimation()
+    }
+
+    private fun move() {
+        startActivity(Intent(this@WelcomeActivity, MainActivity::class.java))
+        finish()
     }
 
     private fun setupView() {
