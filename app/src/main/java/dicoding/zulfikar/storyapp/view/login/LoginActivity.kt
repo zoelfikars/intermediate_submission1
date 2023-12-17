@@ -16,6 +16,7 @@ import dicoding.zulfikar.storyapp.data.pref.UserPreference
 import dicoding.zulfikar.storyapp.data.pref.dataStore
 import dicoding.zulfikar.storyapp.data.remote.Result
 import dicoding.zulfikar.storyapp.databinding.ActivityLoginBinding
+import dicoding.zulfikar.storyapp.view.MainViewModel
 import dicoding.zulfikar.storyapp.view.ViewModelFactory
 import dicoding.zulfikar.storyapp.view.main.MainActivity
 import kotlinx.coroutines.launch
@@ -23,7 +24,7 @@ import kotlinx.coroutines.launch
 
 class LoginActivity : AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
-    private val viewModel: LoginViewModel by viewModels {
+    private val viewModel: MainViewModel by viewModels {
         ViewModelFactory.getInstance(this)
     }
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -79,6 +80,7 @@ class LoginActivity : AppCompatActivity() {
                 val intent = Intent(this@LoginActivity, MainActivity::class.java)
                 intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK
                 startActivity(intent)
+                finish()
             }
             create()
             show()

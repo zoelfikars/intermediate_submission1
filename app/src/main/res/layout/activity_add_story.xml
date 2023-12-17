@@ -20,7 +20,8 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:title="@string/add_story" />
+            app:title="@string/add_story">
+        </androidx.appcompat.widget.Toolbar>
 
         <ImageView
             android:id="@+id/imageView3"

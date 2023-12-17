@@ -20,60 +20,64 @@ import dicoding.zulfikar.storyapp.R
 import dicoding.zulfikar.storyapp.data.models.StoryModel
 import dicoding.zulfikar.storyapp.data.pref.UserPreference
 import dicoding.zulfikar.storyapp.data.pref.dataStore
-import dicoding.zulfikar.storyapp.data.remote.Result
 import dicoding.zulfikar.storyapp.databinding.ActivityMainBinding
 import dicoding.zulfikar.storyapp.databinding.StoryListBinding
+import dicoding.zulfikar.storyapp.view.MainViewModel
 import dicoding.zulfikar.storyapp.view.ViewModelFactory
 import dicoding.zulfikar.storyapp.view.addstory.AddStoryActivity
 import dicoding.zulfikar.storyapp.view.detail.DetailActivity
+import dicoding.zulfikar.storyapp.view.maps.MapsActivity
 import dicoding.zulfikar.storyapp.view.welcome.WelcomeActivity
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
+
     private lateinit var binding: ActivityMainBinding
     private val viewModel: MainViewModel by viewModels {
         ViewModelFactory.getInstance(this@MainActivity)
     }
+    private var storyAdapter = StoryPagingAdapter { selectedStory ->
+        val storyModel = StoryModel(
+            name = selectedStory.name,
+            description = selectedStory.description,
+            photo = null,
+            photoUrl = selectedStory.photoUrl,
+            lat = selectedStory.lat,
+            lon = selectedStory.lon
+        )
+        val storyListBinding: StoryListBinding = StoryListBinding.inflate(layoutInflater)
+
+        val optionsCompat: ActivityOptionsCompat =
+            ActivityOptionsCompat.makeSceneTransitionAnimation(
+                this as Activity,
+                Pair(storyListBinding.imgItemPhoto, "image"),
+                Pair(storyListBinding.tvItemNama, "name"),
+                Pair(storyListBinding.tvItemDescription, "description"),
+            )
+        val intent = Intent(this@MainActivity, DetailActivity::class.java)
+        intent.putExtra("EXTRA_STORY_MODEL", storyModel)
+
+        startActivity(intent, optionsCompat.toBundle())
+        finish()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        var storyAdapter = StoryAdapter { selectedStory ->
-            val storyModel = StoryModel(
-                name = selectedStory.name,
-                description = selectedStory.description,
-                photo = null,
-                photoUrl = selectedStory.photoUrl,
-                lat = null,
-                lon = null
-            )
-            val storyListBinding: StoryListBinding = StoryListBinding.inflate(layoutInflater)
-
-            val optionsCompat: ActivityOptionsCompat =
-                ActivityOptionsCompat.makeSceneTransitionAnimation(
-                    this as Activity,
-                    Pair(storyListBinding.imgItemPhoto, "image"),
-                    Pair(storyListBinding.tvItemNama, "name"),
-                    Pair(storyListBinding.tvItemDescription, "description"),
-                )
-            val intent = Intent(this@MainActivity, DetailActivity::class.java)
-            intent.putExtra("EXTRA_STORY_MODEL", storyModel)
-
-            startActivity(intent, optionsCompat.toBundle())
-            finish()
-        }
-
+        binding.recyclerView.layoutManager = LinearLayoutManager(this)
         lifecycleScope.launch {
             val result = UserPreference(applicationContext.dataStore).getSession().first().token
             if (result.isEmpty()) {
-                move()
+                move(Intent(this@MainActivity, WelcomeActivity::class.java))
             } else {
                 setupView()
                 setupAction()
                 playAnimation()
-                setupRecyclerView(storyAdapter)
+                setupPaging()
+//                test()
             }
         }
 
@@ -83,8 +87,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun move() {
-        startActivity(Intent(this, WelcomeActivity::class.java))
+    private fun move(intent: Intent) {
+        startActivity(intent)
         finish()
     }
 
@@ -101,36 +105,16 @@ class MainActivity : AppCompatActivity() {
         supportActionBar?.hide()
     }
 
-    private fun setupRecyclerView(storyAdapter: StoryAdapter) {
-        binding.recyclerView.adapter = storyAdapter
-        binding.recyclerView.layoutManager = LinearLayoutManager(this)
-
-        lifecycleScope.launch {
-            val token = UserPreference(this@MainActivity.dataStore).getSession().first().token
-            val result = viewModel.getStories(token)
-            showLoading(true)
-            when (result) {
-                is Result.Success -> {
-                    showLoading(false)
-                    storyAdapter.submitList(result.data.listStory)
-                }
-
-                is Result.Error -> {
-                    showLoading(false)
-                    showDialog(result.exception.message.toString())
-                }
+    private suspend fun setupPaging() {
+        val adapter = storyAdapter
+        binding.recyclerView.adapter = adapter.withLoadStateFooter(
+            footer = LoadingStateAdapter {
+                adapter.retry()
             }
-        }
-        binding.recyclerView.adapter = storyAdapter
-    }
-
-    private fun showDialog(message: String) {
-        AlertDialog.Builder(this).apply {
-            setTitle("Pemberitahuan")
-            setMessage(message)
-            setPositiveButton("OK", null)
-            create()
-            show()
+        )
+        val token = UserPreference(this@MainActivity.dataStore).getSession().first().token
+        viewModel.getStoryPaging(token).observe(this) {
+            adapter.submitData(lifecycle, it)
         }
     }
 
@@ -157,6 +141,14 @@ class MainActivity : AppCompatActivity() {
                         true
                     }
 
+                    R.id.maps -> {
+                        val intent = Intent(this@MainActivity, MapsActivity::class.java)
+                        val list = storyAdapter.snapshot().items
+                        intent.putParcelableArrayListExtra("List", ArrayList(list))
+                        move(intent)
+                        true
+                    }
+
                     else -> {
                         super.onOptionsItemSelected(it)
                         false
@@ -177,14 +169,10 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
-    private fun showLoading(isLoading: Boolean) {
-        binding.progressBar.visibility = if (isLoading) View.VISIBLE else View.GONE
-    }
-
     private fun logout() {
         lifecycleScope.launch {
             UserPreference(applicationContext.dataStore).logout()
         }
-        move()
+        move(Intent(this@MainActivity, WelcomeActivity::class.java))
     }
 }

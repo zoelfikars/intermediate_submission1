@@ -5,31 +5,41 @@ import android.animation.AnimatorSet
 import android.animation.ObjectAnimator
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.Location
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Looper
 import android.util.Log
+import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
+import android.widget.Switch
 import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.lifecycleScope
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
 import dicoding.zulfikar.storyapp.R
 import dicoding.zulfikar.storyapp.data.pref.UserPreference
 import dicoding.zulfikar.storyapp.data.pref.dataStore
 import dicoding.zulfikar.storyapp.data.remote.Result
 import dicoding.zulfikar.storyapp.databinding.ActivityAddStoryBinding
+import dicoding.zulfikar.storyapp.view.MainViewModel
 import dicoding.zulfikar.storyapp.view.ViewModelFactory
 import dicoding.zulfikar.storyapp.view.addstory.CameraXActivity.Companion.CAMERAX_RESULT
 import dicoding.zulfikar.storyapp.view.main.MainActivity
-import dicoding.zulfikar.storyapp.view.main.MainViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -37,6 +47,14 @@ import kotlinx.coroutines.launch
 class AddStoryActivity : AppCompatActivity() {
     private lateinit var binding: ActivityAddStoryBinding
     private var currentImageUri: Uri? = null
+    private var isLocationEnabled = false
+    private lateinit var locationRequest: LocationRequest
+    private lateinit var locationCallback: LocationCallback
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private val viewModel: MainViewModel by viewModels {
+        ViewModelFactory.getInstance(this)
+    }
+
     private fun allPermissionsGranted() =
         ContextCompat.checkSelfPermission(
             this,
@@ -80,8 +98,22 @@ class AddStoryActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityAddStoryBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        val viewModel: MainViewModel by viewModels {
-            ViewModelFactory.getInstance(this)
+
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        locationRequest = LocationRequest.create().apply {
+            interval = 10000
+            fastestInterval = 5000
+            priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+        }
+
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                locationResult.lastLocation?.let { location ->
+                    val latitude: Double = location.latitude
+                    val longitude: Double = location.longitude
+                }
+            }
         }
         if (!allPermissionsGranted()) {
             requestPermissionLauncher.launch(REQUIRED_PERMISSION)
@@ -92,11 +124,65 @@ class AddStoryActivity : AppCompatActivity() {
                 move()
             } else {
                 setupView()
-                setupAction(viewModel)
+                setupAction()
                 playAnimation()
             }
         }
 
+    }
+    private fun startLocationUpdates() {
+        if (allPermissionsGranted()) {
+            if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                return
+            }
+            fusedLocationClient.requestLocationUpdates(
+                locationRequest,
+                locationCallback,
+                Looper.getMainLooper()
+            )
+        } else {
+            requestPermissionLauncher.launch(REQUIRED_PERMISSION)
+        }
+    }
+    private fun stopLocationUpdates() {
+        fusedLocationClient.removeLocationUpdates(locationCallback)
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.add_menu, menu)
+        val locationSwitch = menu?.findItem(R.id.menu_location)?.actionView?.findViewById<Switch>(R.id.locationSwitch)
+        locationSwitch?.setOnCheckedChangeListener { _, isChecked ->
+            isLocationEnabled = isChecked
+            if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                requestLocationPermission()
+            }
+            if (isLocationEnabled) {
+                startLocationUpdates()
+            } else {
+                stopLocationUpdates()
+            }
+        }
+
+        return true
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        stopLocationUpdates()
     }
 
     private fun playAnimation() {
@@ -128,7 +214,7 @@ class AddStoryActivity : AppCompatActivity() {
         }.start()
     }
 
-    private fun setupAction(viewModel: MainViewModel) {
+    private fun setupAction() {
         with(binding) {
             setSupportActionBar(toolbar)
             supportActionBar?.setDisplayHomeAsUpEnabled(true)
@@ -139,7 +225,11 @@ class AddStoryActivity : AppCompatActivity() {
                 startGallery()
             }
             button3.setOnClickListener {
-                uploadStory(viewModel)
+                if(isLocationEnabled) {
+                    getLocationAndUpload()
+                } else {
+                    uploadStory(null, null)
+                }
             }
         }
     }
@@ -172,15 +262,44 @@ class AddStoryActivity : AppCompatActivity() {
         launcherIntentCameraX.launch(intent)
     }
 
-    private fun uploadStory(viewModel: MainViewModel) {
+    private fun requestLocationPermission() {
+        requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        requestPermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+    }
+
+    private fun getLocationAndUpload() {
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        } else {
+            fusedLocationClient.lastLocation
+                .addOnSuccessListener { location: Location? ->
+                    if (location != null) {
+                        uploadStory(location.latitude, location.longitude)
+                    }
+                }
+                .addOnFailureListener { exception ->
+                    showToast("Gagal mendapatkan lokasi: ${exception.message}")
+                }
+        }
+    }
+
+
+    private fun uploadStory(lat: Double?, lon: Double?) {
         currentImageUri?.let { uri ->
             val imageFile = uriToFile(uri, this).reduceFileImage()
-            Log.d("Image File", "showImage: ${imageFile.path}")
             val description = binding.textInputEditText.text.toString()
-
             lifecycleScope.launch {
                 showLoading(true)
-                val result = viewModel.uploadImage(imageFile, description)
+                val token = UserPreference.getInstance(applicationContext.dataStore).getSession().first().token
+                val result = viewModel.uploadImage(imageFile, description, lat, lon, isLocationEnabled, token)
                 when (result) {
                     is Result.Success -> {
                         showLoading(false)

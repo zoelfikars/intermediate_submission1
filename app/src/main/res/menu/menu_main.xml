@@ -3,6 +3,11 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     >
     <item
+        android:id="@+id/maps"
+        android:icon="@drawable/ic_maps_24dp"
+        android:title="Maps"
+        app:showAsAction="always" />
+    <item
         android:id="@+id/logout"
         app:showAsAction="always"
         android:icon="@drawable/ic_baseline_logout_24"

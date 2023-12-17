@@ -15,6 +15,7 @@ import androidx.lifecycle.lifecycleScope
 import dicoding.zulfikar.storyapp.data.remote.Result
 import dicoding.zulfikar.storyapp.data.remote.response.MessageResponse
 import dicoding.zulfikar.storyapp.databinding.ActivitySignUpBinding
+import dicoding.zulfikar.storyapp.view.MainViewModel
 import dicoding.zulfikar.storyapp.view.ViewModelFactory
 import dicoding.zulfikar.storyapp.view.main.MainActivity
 import kotlinx.coroutines.launch
@@ -22,17 +23,17 @@ import kotlinx.coroutines.launch
 
 class SignUpActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySignUpBinding
-
+    private val viewModel by viewModels<MainViewModel> {
+        ViewModelFactory.getInstance(this)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySignUpBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        val viewModel by viewModels<SignUpViewModel> {
-            ViewModelFactory.getInstance(this)
-        }
+
         setupView()
-        setupAction(viewModel)
+        setupAction()
         playAnimation()
     }
 
@@ -49,7 +50,7 @@ class SignUpActivity : AppCompatActivity() {
         supportActionBar?.hide()
     }
 
-    private fun setupAction(viewModel: SignUpViewModel) {
+    private fun setupAction() {
         binding.signupButton.setOnClickListener {
             val name = binding.nameEditText.text.toString()
             val email = binding.emailEditText.text.toString()

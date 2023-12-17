@@ -3,14 +3,13 @@ package dicoding.zulfikar.storyapp.data.models
 import android.os.Parcel
 import android.os.Parcelable
 import java.io.File
-
 data class StoryModel(
     val name: String,
     val description: String,
     val photoUrl: String,
     val photo: File? = null,
-    val lat: Float? = null,
-    val lon: Float? = null
+    val lat: Double? = null,
+    val lon: Double? = null
 ) : Parcelable {
 
     constructor(parcel: Parcel) : this(
@@ -18,8 +17,8 @@ data class StoryModel(
         parcel.readString() ?: "",
         parcel.readString() ?: "",
         parcel.readSerializable() as? File,
-        parcel.readValue(Float::class.java.classLoader) as? Float,
-        parcel.readValue(Float::class.java.classLoader) as? Float
+        parcel.readValue(Float::class.java.classLoader) as? Double,
+        parcel.readValue(Float::class.java.classLoader) as? Double
     )
 
     override fun writeToParcel(parcel: Parcel, flags: Int) {
