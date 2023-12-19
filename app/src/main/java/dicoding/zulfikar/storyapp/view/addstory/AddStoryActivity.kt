@@ -80,7 +80,6 @@ class AddStoryActivity : AppCompatActivity() {
             currentImageUri = uri
             showImage()
         } else {
-            Log.d("Photo Picker", "No media selected")
         }
     }
 

@@ -9,7 +9,6 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object ApiConfig {
     fun getApiService(token: String): ApiService {
-        Log.d("INI TOKEN ANJENG Api Service", token)
         val loggingInterceptor = HttpLoggingInterceptor()
             .setLevel(HttpLoggingInterceptor.Level.BODY)
         val authInterceptor = Interceptor { chain ->

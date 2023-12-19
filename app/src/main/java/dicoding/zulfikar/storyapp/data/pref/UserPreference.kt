@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.map
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "session")
 
-class UserPreference constructor(private val dataStore: DataStore<Preferences>) {
+class UserPreference(private val dataStore: DataStore<Preferences>) {
     suspend fun saveSession(user: UserModel) {
         dataStore.edit { preferences ->
             preferences[USERID_KEY] = user.userId
@@ -22,7 +22,7 @@ class UserPreference constructor(private val dataStore: DataStore<Preferences>) 
 
     }
 
-    suspend fun getSession(): Flow<UserModel> {
+    fun getSession(): Flow<UserModel> {
         return dataStore.data.map { preferences ->
             UserModel(
                 preferences[USERID_KEY] ?: "",
@@ -54,5 +54,4 @@ class UserPreference constructor(private val dataStore: DataStore<Preferences>) 
             }
         }
     }
-
 }

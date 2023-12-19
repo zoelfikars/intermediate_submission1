@@ -1,5 +1,6 @@
 package dicoding.zulfikar.storyapp.data
 
+import android.annotation.SuppressLint
 import androidx.lifecycle.LiveData
 import androidx.paging.ExperimentalPagingApi
 import androidx.paging.Pager
@@ -39,6 +40,7 @@ class StoryRepository private constructor(
             }
         ).liveData
     }
+    @SuppressLint("SuspiciousIndentation")
     suspend fun getStoryLocation(token: String): Result<StoryResponse> {
         if(token.isNotEmpty()) {
             apiService = ApiConfig.getApiService(token)

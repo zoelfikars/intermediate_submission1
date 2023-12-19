@@ -84,7 +84,6 @@ class MainViewModelTest {
             workerDispatcher = Dispatchers.Main,
         )
         differ.submitData(actualStory)
-        Log.d("TESTTEST", "this is differ : ${differ.itemCount}")
 
         Assert.assertEquals(0, differ.snapshot().size)
     }
